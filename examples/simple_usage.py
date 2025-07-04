@@ -1,6 +1,7 @@
 import uvicorn
 from fastapi import FastAPI, Depends
 from typing import Optional, Dict, Any
+from yai_nexus_logger import get_logger
 
 # 在一个实际的项目中, 你可以这样统一导入
 from yai_nexus_api_middleware import (
@@ -10,6 +11,8 @@ from yai_nexus_api_middleware import (
     ApiResponse,
     allow_raw_response,
 )
+# 理想情况下，get_trace_id 也应该从这里导出
+from yai_nexus_api_middleware.dependencies import get_trace_id
 
 # 1. 创建 FastAPI 应用实例
 app = FastAPI(title="YAI Nexus API Middleware 示例")
@@ -38,13 +41,44 @@ app = FastAPI(title="YAI Nexus API Middleware 示例")
 async def read_root(user: Optional[UserInfo] = Depends(get_current_user)) -> ApiResponse:
     """
     一个合规的示例端点。
-    它使用辅助函数来构造并返回一个 ApiResponse 对象。
+    它直接调用 `ApiResponse.success` 来构造一个标准成功的响应。
     """
     if user and user.user_id:
         message = f"你好, 来自租户 {user.tenant_id} 的用户 {user.user_id}!"
     else:
         message = "你好, 匿名用户!"
     return ApiResponse.success(data={"message": message})
+
+
+@app.get("/items/{item_id}", response_model=ApiResponse)
+async def get_item(item_id: str) -> ApiResponse:
+    """
+    一个演示失败响应的端点。
+    当找不到物品时，它会返回一个标准的失败响应。
+    """
+    if item_id == "foo":
+        return ApiResponse.success(data={"item_id": item_id, "name": "一个有效的物品"})
+    else:
+        return ApiResponse.failure(
+            code="ITEM_NOT_FOUND",
+            message=f"ID 为 '{item_id}' 的物品不存在。"
+        )
+
+
+@app.get("/report", response_model=ApiResponse)
+async def create_report(current_trace_id: str = Depends(get_trace_id)):
+    """
+    一个演示如何在业务逻辑中使用 trace_id 的端点。
+    """
+    logger = get_logger(__name__)
+
+    # 在日志中手动包含 trace_id
+    logger.info(f"正在生成报告，Trace ID: {current_trace_id}")
+
+    # 也可以在返回数据中包含 trace_id
+    return ApiResponse.success(
+        data={"report_id": "rep_123", "trace_id_used": current_trace_id}
+    )
 
 
 @app.get("/bad-endpoint")
@@ -80,6 +114,17 @@ async def health_check() -> Dict[str, str]:
 #      curl http://127.0.0.1:8000/
 #      # 预期输出: 一个标准的 ApiResponse JSON
 #      # {"data":{"message":"你好, 匿名用户!"},"code":"0","message":"操作成功","trace_id":...}
+#
+#    - 调用返回失败的路径:
+#      curl http://127.0.0.1:8000/items/bar
+#      # 预期输出: 一个标准的失败响应
+#      # {"data":null,"code":"ITEM_NOT_FOUND","message":"ID 为 'bar' 的物品不存在。",...}
+#
+#    - 调用使用 trace_id 的路径:
+#      curl -H "X-Request-ID: my-custom-trace-id" http://127.0.0.1:8000/report
+#      # 预期输出: data 中包含自定义的 trace_id
+#      # {"data":{"report_id":"rep_123","trace_id_used":"my-custom-trace-id"},"code":"0",...}
+#      # 同时观察终端日志，会看到包含 "my-custom-trace-id" 的日志。
 #
 #    - 调用不合规的路径 (注意 -i 以显示 HTTP 状态码):
 #      curl -i http://127.0.0.1:8000/bad-endpoint

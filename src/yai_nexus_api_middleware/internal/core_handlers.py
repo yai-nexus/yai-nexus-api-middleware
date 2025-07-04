@@ -43,7 +43,9 @@ class CoreMiddleware(BaseHTTPMiddleware):
         if not self.tracing_enabled:
             return
         trace_id = request.headers.get(self.trace_header)
-        return trace_context.set_trace_id(trace_id)
+        token = trace_context.set_trace_id(trace_id)
+        request.state.trace_id = trace_context.get_trace_id()
+        return token
 
     def _handle_identity(self, request: Request):
         """处理身份解析"""
