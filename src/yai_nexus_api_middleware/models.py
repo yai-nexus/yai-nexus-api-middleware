@@ -20,7 +20,7 @@ class StaffInfo(BaseModel):
     staff_id: Optional[str] = None
 
 
-class GatewayResponse(BaseModel, Generic[T]):
+class ApiResponse(BaseModel, Generic[T]):
     """
     标准化的 API 响应包装器。
     """
