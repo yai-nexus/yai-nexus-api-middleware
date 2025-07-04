@@ -1,7 +1,7 @@
 import uvicorn
 from fastapi import FastAPI, Depends
 from typing import Optional, Dict, Any
-from yai_nexus_logger import get_logger
+from yai_nexus_logger import init_logging, get_logger, LoggerConfigurator
 
 # 在一个实际的项目中, 你可以这样统一导入
 from yai_nexus_api_middleware import (
@@ -14,9 +14,17 @@ from yai_nexus_api_middleware import (
 # 理想情况下，get_trace_id 也应该从这里导出
 from yai_nexus_api_middleware.dependencies import get_trace_id
 
+# 初始化日志
+init_logging(
+    LoggerConfigurator()
+        .with_console_handler()
+        .with_file_handler(path="logs/simple_usage.log")
+)
+
+logger = get_logger(__name__)
+
 # 1. 创建 FastAPI 应用实例
 app = FastAPI(title="YAI Nexus API Middleware 示例")
-
 
 # 2. 使用流式建造者来配置和应用中间件
 (
@@ -47,6 +55,7 @@ async def read_root(user: Optional[UserInfo] = Depends(get_current_user)) -> Api
         message = f"你好, 来自租户 {user.tenant_id} 的用户 {user.user_id}!"
     else:
         message = "你好, 匿名用户!"
+    logger.info(f"read_root, message: {message}")
     return ApiResponse.success(data={"message": message})
 
 
@@ -56,6 +65,7 @@ async def get_item(item_id: str) -> ApiResponse:
     一个演示失败响应的端点。
     当找不到物品时，它会返回一个标准的失败响应。
     """
+    logger.info(f"正在获取 item, item_id: {item_id}")
     if item_id == "foo":
         return ApiResponse.success(data={"item_id": item_id, "name": "一个有效的物品"})
     else:
@@ -70,8 +80,6 @@ async def create_report(current_trace_id: str = Depends(get_trace_id)):
     """
     一个演示如何在业务逻辑中使用 trace_id 的端点。
     """
-    logger = get_logger(__name__)
-
     # 在日志中手动包含 trace_id
     logger.info(f"正在生成报告，Trace ID: {current_trace_id}")
 
@@ -87,6 +95,7 @@ async def bad_endpoint() -> Dict[str, Any]:
     一个不合规的端点。
     它返回一个原始字典，将被中间件拦截并返回 500 错误。
     """
+    logger.info("正在访问不合规的端点 /bad-endpoint")
     return {"error": "this response is not compliant"}
 
 
@@ -97,6 +106,7 @@ async def health_check() -> Dict[str, str]:
     一个被豁免的健康检查端点。
     由于 @allow_raw_response, 它可以直接返回原始 JSON。
     """
+    logger.info("正在执行健康检查")
     return {"status": "ok"}
 
 
