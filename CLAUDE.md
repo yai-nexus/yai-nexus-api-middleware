@@ -78,6 +78,7 @@ Always call `.build()` to apply the middleware to the FastAPI app.
 The project has comprehensive test coverage with 51+ tests across multiple categories:
 
 ### Test Structure
+
 - **Unit Tests** (`tests/unit/`): Test individual components in isolation
   - `test_models.py`: UserInfo and StaffInfo model validation (10 tests)
   - `test_responses.py`: ApiResponse creation and validation (8 tests)  
@@ -88,6 +89,7 @@ The project has comprehensive test coverage with 51+ tests across multiple categ
   - `test_simple_middleware_integration.py`: End-to-end middleware testing (12+ tests)
 
 ### Test Guidelines
+
 - Uses pytest framework with `pytest` command
 - Test files should be named `test_*.py`
 - Test functions should be named `test_具体功能描述` (Chinese descriptive names)
@@ -96,6 +98,7 @@ The project has comprehensive test coverage with 51+ tests across multiple categ
 - Test dependencies include: `pytest>=7.0.0`, `httpx>=0.24.0`, `uvicorn[standard]>=0.20.0`
 
 ### What Tests Cover
+
 - Model creation, validation, and serialization
 - ApiResponse success/failure scenarios with automatic trace_id injection
 - Dependency injection for user/staff context extraction
@@ -103,3 +106,4 @@ The project has comprehensive test coverage with 51+ tests across multiple categ
 - Complete request/response flows with tracing, identity parsing, and logging
 - Concurrent request handling and trace_id consistency
 - Error handling and edge cases
+
