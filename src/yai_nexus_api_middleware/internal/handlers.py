@@ -4,8 +4,7 @@ from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from yai_nexus_api_middleware.models import UserInfo, StaffInfo
-from yai_nexus_api_middleware.context import set_trace_id, reset_trace_id, get_trace_id
-from yai_nexus_logger import get_logger
+from yai_nexus_logger import get_logger, trace_context
 
 
 class MiddlewareHandlers:
@@ -39,7 +38,7 @@ class MiddlewareHandlers:
         if not self.tracing_enabled:
             return
         trace_id = request.headers.get(self.trace_header)
-        return set_trace_id(trace_id)
+        return trace_context.set_trace_id(trace_id)
 
     def _handle_identity(self, request: Request):
         """处理身份解析"""
@@ -98,8 +97,8 @@ class MiddlewareHandlers:
             process_time = time.time() - start_time
             
             # 将 trace_id 添加到响应头
-            if self.tracing_enabled and get_trace_id():
-                response.headers["X-Trace-ID"] = get_trace_id()
+            if self.tracing_enabled and trace_context.get_trace_id():
+                response.headers["X-Trace-ID"] = trace_context.get_trace_id()
             
             await self._log_response(request, response, process_time)
 
@@ -112,6 +111,6 @@ class MiddlewareHandlers:
             raise e
         finally:
             if token:
-                reset_trace_id(token)
+                trace_context.reset_trace_id(token)
 
         return response 

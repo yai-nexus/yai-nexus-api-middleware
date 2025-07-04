@@ -13,13 +13,19 @@ app = FastAPI(title="YAI Nexus API Middleware 示例")
 
 
 # 2. 使用流式建造者来配置和应用中间件
-MiddlewareBuilder(app).with_tracing(header="X-Request-ID").with_identity_parsing(
-    tenant_id_header="X-Tenant-ID",
-    user_id_header="X-User-ID",
-    staff_id_header="X-Staff-ID",
-).with_request_logging(
-    exclude_paths=["/health", "/docs", "/openapi.json"]
-).build()
+(
+    MiddlewareBuilder(app)
+        .with_tracing(header="X-Request-ID")
+        .with_identity_parsing(
+            tenant_id_header="X-Tenant-ID",
+            user_id_header="X-User-ID",
+            staff_id_header="X-Staff-ID",
+        )
+        .with_request_logging(
+            exclude_paths=["/health", "/docs", "/openapi.json"]
+        )
+        .build()
+)
 
 
 # 3. 创建 API 端点
