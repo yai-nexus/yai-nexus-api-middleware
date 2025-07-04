@@ -4,7 +4,7 @@
 from typing import Any, Optional, TypeVar
 from pydantic import BaseModel, Field
 from typing import Generic
-
+from yai_nexus_logger import get_trace_id
 
 T = TypeVar("T")
 
@@ -29,7 +29,7 @@ class ApiResponse(BaseModel, Generic[T]):
         Returns:
             一个配置为成功状态的 ApiResponse 对象。
         """
-        return ApiResponse(data=data)
+        return ApiResponse(data=data, trace_id=get_trace_id())
 
     @staticmethod
     def failure(code: str, message: str, data: Optional[Any] = None) -> "ApiResponse[T]":
@@ -46,4 +46,4 @@ class ApiResponse(BaseModel, Generic[T]):
         """
         if code == "0":
             raise ValueError("错误响应的代码不能为 '0'")
-        return ApiResponse(code=code, message=message, data=data) 
+        return ApiResponse(code=code, message=message, data=data, trace_id=get_trace_id()) 

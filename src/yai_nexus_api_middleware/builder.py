@@ -16,7 +16,6 @@ class MiddlewareBuilder:
             app: 要应用中间件的 FastAPI 实例。
         """
         self._app = app
-        self._standard_response_enabled = False
         
         # 中间件配置参数
         self._trace_header = "X-Trace-ID"
@@ -83,16 +82,6 @@ class MiddlewareBuilder:
         self._log_exclude_paths = exclude_paths or []
         return self
 
-    def with_standard_response(self) -> "MiddlewareBuilder":
-        """
-        启用标准的 ApiResponse 自动包装功能。
-
-        如果启用, 所有返回 JSON 的端点都会被自动包装成 ApiResponse 格式,
-        除非该端点被 @allow_raw_response 装饰器标记。
-        """
-        self._standard_response_enabled = True
-        return self
-
     def build(self):
         """
         构建并应用配置好的中间件到 FastAPI 应用。
@@ -108,5 +97,4 @@ class MiddlewareBuilder:
             tracing_enabled=self._tracing_enabled,
             identity_enabled=self._identity_enabled,
             logging_enabled=self._logging_enabled,
-            standard_response_enabled=self._standard_response_enabled,
         )
