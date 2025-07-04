@@ -1,7 +1,8 @@
 from typing import List, Optional
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from yai_nexus_api_middleware.internal.handlers import MiddlewareHandlers
+from .models import UserInfo, StaffInfo
 
 
 class MiddlewareBuilder:
@@ -79,4 +80,20 @@ class MiddlewareBuilder:
         middleware = BaseHTTPMiddleware(
             app=self._app, dispatch=self._handlers.dispatch
         )
-        self._app.add_middleware(BaseHTTPMiddleware, dispatch=self._handlers.dispatch) 
+        self._app.add_middleware(BaseHTTPMiddleware, dispatch=self._handlers.dispatch)
+
+
+# --- Dependency Injection ---
+
+def get_current_user(request: Request) -> Optional[UserInfo]:
+    """
+    一个 FastAPI 依赖项，用于从请求状态中获取当前用户信息。
+    """
+    return getattr(request.state, "user_info", None)
+
+
+def get_current_staff(request: Request) -> Optional[StaffInfo]:
+    """
+    一个 FastAPI 依赖项，用于从请求状态中获取当前员工信息。
+    """
+    return getattr(request.state, "staff_info", None) 

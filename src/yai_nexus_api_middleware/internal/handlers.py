@@ -1,11 +1,11 @@
 import time
-from typing import Callable, List
+from typing import Callable, List, Awaitable
 from fastapi import Request, Response
-from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseCall
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from yai_nexus_api_middleware.models import UserInfo, StaffInfo
 from yai_nexus_api_middleware.context import set_trace_id, reset_trace_id, get_trace_id
-from yai_nexus_logger.logger import logger
+from yai_nexus_logger import get_logger
 
 
 class MiddlewareHandlers:
@@ -32,6 +32,7 @@ class MiddlewareHandlers:
         self.tracing_enabled = False
         self.identity_enabled = False
         self.logging_enabled = False
+        self.logger = get_logger(__name__)
 
     async def _handle_tracing(self, request: Request):
         """处理链路追踪"""
@@ -60,7 +61,7 @@ class MiddlewareHandlers:
         if not self.logging_enabled or request.url.path in self.log_exclude_paths:
             return
 
-        logger.info(
+        self.logger.info(
             f"请求开始: {request.method} {request.url.path}",
             extra={
                 "client": f"{request.client.host}:{request.client.port}",
@@ -73,7 +74,7 @@ class MiddlewareHandlers:
         if not self.logging_enabled or request.url.path in self.log_exclude_paths:
             return
 
-        logger.info(
+        self.logger.info(
             f"请求完成: {request.method} {request.url.path}",
             extra={
                 "status_code": response.status_code,
@@ -81,7 +82,7 @@ class MiddlewareHandlers:
             },
         )
 
-    async def dispatch(self, request: Request, call_next: RequestResponseCall):
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]):
         """
         统一的中间件调度函数。
         """
@@ -104,7 +105,7 @@ class MiddlewareHandlers:
 
         except Exception as e:
             process_time = time.time() - start_time
-            logger.exception(
+            self.logger.exception(
                 f"请求异常: {request.method} {request.url.path}",
                 extra={"process_time_seconds": f"{process_time:.4f}"},
             )
