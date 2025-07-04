@@ -1,31 +1,23 @@
 import json
-from typing import Awaitable, Callable
-
 from fastapi import Request, Response
-from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 from yai_nexus_logger import get_logger, trace_context
 
 from yai_nexus_api_middleware.responses import ApiResponse
 
 
-class StandardResponseMiddleware(BaseHTTPMiddleware):
+class StandardResponseHandler:
     """
-    一个独立的中间件，用于强制端点的返回结果是标准的 ApiResponse 格式。
+    标准响应处理器，用于强制端点的返回结果是标准的 ApiResponse 格式。
     """
 
-    def __init__(self, app):
-        super().__init__(app)
+    def __init__(self):
         self.logger = get_logger(__name__)
 
-    async def dispatch(
-        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
-    ):
+    def process(self, request: Request, response: Response) -> Response:
         """
-        中间件的核心逻辑：校验响应格式。
+        处理响应，确保符合 ApiResponse 格式。
         """
-        response = await call_next(request)
-
         # 1. 检查端点是否使用 @allow_raw_response 装饰器进行了豁免
         endpoint = request.scope.get("endpoint")
         if not endpoint or hasattr(endpoint, "_allow_raw_response"):
@@ -48,7 +40,7 @@ class StandardResponseMiddleware(BaseHTTPMiddleware):
         if isinstance(data, dict) and "code" in data and "message" in data:
             # 格式正确，仅当缺少 trace_id 时补充
             if "trace_id" not in data or not data["trace_id"]:
-                trace_id = trace_context.get_trace_id()
+                trace_id = getattr(request.state, "trace_id", None) or trace_context.get_trace_id()
                 if trace_id:
                     data["trace_id"] = trace_id
                     return JSONResponse(
@@ -72,9 +64,9 @@ class StandardResponseMiddleware(BaseHTTPMiddleware):
             error_response = ApiResponse.failure(
                 code="ERR_INVALID_RESPONSE_FORMAT", message=error_message
             )
-            error_response.trace_id = trace_context.get_trace_id()
+            error_response.trace_id = getattr(request.state, "trace_id", None) or trace_context.get_trace_id()
 
             return JSONResponse(
-                content=error_response.dict(by_alias=True),
+                content=error_response.model_dump(by_alias=True),
                 status_code=500,  # Internal Server Error
-            ) 
+            )

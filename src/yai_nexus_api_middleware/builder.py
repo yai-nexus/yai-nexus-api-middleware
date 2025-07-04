@@ -1,7 +1,6 @@
 from typing import List, Optional
 from fastapi import FastAPI
-from yai_nexus_api_middleware.internal.core_handlers import CoreMiddleware
-from yai_nexus_api_middleware.internal.standard_response import StandardResponseMiddleware
+from yai_nexus_api_middleware.internal.core_middleware import CoreMiddleware
 
 
 class MiddlewareBuilder:
@@ -97,16 +96,8 @@ class MiddlewareBuilder:
     def build(self):
         """
         构建并应用配置好的中间件到 FastAPI 应用。
-
-        注意: 中间件的执行顺序是"后进先出"(LIFO)。
-        因此，我们先添加主中间件，再添加响应包装中间件，
-        这样在处理响应时，包装中间件会先执行。
         """
-        # 如果启用，先添加响应包装中间件
-        if self._standard_response_enabled:
-            self._app.add_middleware(StandardResponseMiddleware)
-
-        # 然后添加主中间件，用于处理追踪、身份、日志等
+        # 添加核心中间件，包含所有功能
         self._app.add_middleware(
             CoreMiddleware,
             trace_header=self._trace_header,
@@ -117,4 +108,5 @@ class MiddlewareBuilder:
             tracing_enabled=self._tracing_enabled,
             identity_enabled=self._identity_enabled,
             logging_enabled=self._logging_enabled,
+            standard_response_enabled=self._standard_response_enabled,
         )

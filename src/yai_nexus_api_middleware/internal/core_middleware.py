@@ -6,6 +6,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from yai_nexus_logger import get_logger, trace_context
 
 from yai_nexus_api_middleware.models import StaffInfo, UserInfo
+from .standard_response_handler import StandardResponseHandler
 
 
 class CoreMiddleware(BaseHTTPMiddleware):
@@ -24,6 +25,7 @@ class CoreMiddleware(BaseHTTPMiddleware):
         tracing_enabled: bool = False,
         identity_enabled: bool = False,
         logging_enabled: bool = False,
+        standard_response_enabled: bool = False,
     ):
         super().__init__(app)
         self.trace_header = trace_header
@@ -37,6 +39,12 @@ class CoreMiddleware(BaseHTTPMiddleware):
         self.identity_enabled = identity_enabled
         self.logging_enabled = logging_enabled
         self.logger = get_logger(__name__)
+        
+        # 标准响应处理器
+        self.response_handler = None
+        if standard_response_enabled:
+            self.response_handler = StandardResponseHandler()
+            self.logger.info(f"Standard response handler initialized: {self.response_handler is not None}")
 
     async def _handle_tracing(self, request: Request):
         """处理链路追踪"""
@@ -100,6 +108,11 @@ class CoreMiddleware(BaseHTTPMiddleware):
         try:
             response = await call_next(request)
             process_time = time.time() - start_time
+
+            # 处理标准响应格式
+            if self.response_handler:
+                self.logger.info(f"Calling standard response handler for {request.url.path}")
+                response = self.response_handler.process(request, response)
 
             # 将 trace_id 添加到响应头
             if self.tracing_enabled and trace_context.get_trace_id():
