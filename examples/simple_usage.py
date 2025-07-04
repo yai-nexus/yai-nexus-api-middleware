@@ -1,7 +1,7 @@
 import uvicorn
 from fastapi import FastAPI, Depends
 from typing import Optional, Dict, Any
-from yai_nexus_logger import init_logging, get_logger, LoggerConfigurator
+from yai_nexus_logger import LoggerConfigurator, init_logging, get_logger, trace_context
 
 # 在一个实际的项目中, 你可以这样统一导入
 from yai_nexus_api_middleware import (
@@ -9,9 +9,7 @@ from yai_nexus_api_middleware import (
     get_current_user,
     UserInfo,
     ApiResponse,
-)
-# 理想情况下，get_trace_id 也应该从这里导出
-from yai_nexus_api_middleware.dependencies import get_trace_id
+    )
 
 # 初始化日志
 init_logging(
@@ -74,10 +72,12 @@ async def get_item(item_id: str) -> ApiResponse:
 
 
 @app.get("/report", response_model=ApiResponse)
-async def create_report(current_trace_id: str = Depends(get_trace_id)):
+async def create_report():
     """
     一个演示如何在业务逻辑中使用 trace_id 的端点。
     """
+    current_trace_id = trace_context.get_trace_id()
+    
     # 在日志中手动包含 trace_id
     logger.info(f"正在生成报告，Trace ID: {current_trace_id}")
 

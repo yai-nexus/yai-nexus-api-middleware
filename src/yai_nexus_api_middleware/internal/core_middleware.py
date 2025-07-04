@@ -69,7 +69,9 @@ class CoreMiddleware(BaseHTTPMiddleware):
             return
 
         self.logger.info(
-            f"请求开始: {request.method} {request.url.path} - Client: %s, User-Agent: %s",
+            "请求开始: %s %s - Client: %s, User-Agent: %s",
+            request.method,
+            request.url.path,
             f"{request.client.host}:{request.client.port}",
             request.headers.get("user-agent", "Unknown"),
         )
@@ -82,7 +84,9 @@ class CoreMiddleware(BaseHTTPMiddleware):
             return
 
         self.logger.info(
-            f"请求完成: {request.method} {request.url.path} with status %d in %.4f seconds",
+            "请求完成: %s %s with status %d in %.4f seconds",
+            request.method,
+            request.url.path,
             response.status_code,
             process_time,
         )
@@ -112,7 +116,9 @@ class CoreMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             process_time = time.time() - start_time
             self.logger.exception(
-                f"请求异常: {request.method} {request.url.path} after %.4f seconds",
+                "请求异常: %s %s after %.4f seconds",
+                request.method,
+                request.url.path,
                 process_time,
             )
             raise e

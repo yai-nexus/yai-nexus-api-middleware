@@ -20,15 +20,6 @@ def get_current_user(request: Request) -> Optional[UserInfo]:
     return getattr(request.state, "user_info", None)
 
 
-def get_trace_id(request: Request) -> Optional[str]:
-    """
-    一个 FastAPI 依赖项，用于从请求状态中获取当前的 trace_id。
-
-    如果 tracing 中间件未启用或未生成 trace_id，则返回 None。
-    """
-    return getattr(request.state, "trace_id", None)
-
-
 def get_current_staff(request: Request) -> Optional[StaffInfo]:
     """
     一个 FastAPI 依赖项，用于从请求状态中获取当前员工信息。
