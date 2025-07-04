@@ -1,10 +1,10 @@
 import time
 from typing import Callable, List, Awaitable
-from fastapi import Request, Response
-from starlette.middleware.base import BaseHTTPMiddleware
 
-from yai_nexus_api_middleware.models import UserInfo, StaffInfo
+from fastapi import Request, Response
 from yai_nexus_logger import get_logger, trace_context
+
+from yai_nexus_api_middleware.models import StaffInfo, UserInfo
 
 
 class MiddlewareHandlers:
@@ -44,7 +44,7 @@ class MiddlewareHandlers:
         """处理身份解析"""
         if not self.identity_enabled:
             return
-        
+
         tenant_id = request.headers.get(self.tenant_id_header)
         request.state.user_info = UserInfo(
             tenant_id=tenant_id,
@@ -68,7 +68,9 @@ class MiddlewareHandlers:
             },
         )
 
-    async def _log_response(self, request: Request, response: Response, process_time: float):
+    async def _log_response(
+        self, request: Request, response: Response, process_time: float
+    ):
         """记录响应信息"""
         if not self.logging_enabled or request.url.path in self.log_exclude_paths:
             return
@@ -81,12 +83,14 @@ class MiddlewareHandlers:
             },
         )
 
-    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]):
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ):
         """
         统一的中间件调度函数。
         """
         start_time = time.time()
-        
+
         # 按顺序执行：追踪 -> 身份 -> 日志
         token = await self._handle_tracing(request)
         self._handle_identity(request)
@@ -95,11 +99,11 @@ class MiddlewareHandlers:
         try:
             response = await call_next(request)
             process_time = time.time() - start_time
-            
+
             # 将 trace_id 添加到响应头
             if self.tracing_enabled and trace_context.get_trace_id():
                 response.headers["X-Trace-ID"] = trace_context.get_trace_id()
-            
+
             await self._log_response(request, response, process_time)
 
         except Exception as e:

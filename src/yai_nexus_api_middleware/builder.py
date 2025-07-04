@@ -1,7 +1,8 @@
 from typing import List, Optional
 from fastapi import FastAPI, Request
 from starlette.middleware.base import BaseHTTPMiddleware
-from yai_nexus_api_middleware.internal.handlers import MiddlewareHandlers
+from yai_nexus_api_middleware.internal.core_handlers import MiddlewareHandlers
+from yai_nexus_api_middleware.internal.standard_response import StandardResponseMiddleware
 from .models import UserInfo, StaffInfo
 
 
@@ -19,6 +20,7 @@ class MiddlewareBuilder:
         """
         self._app = app
         self._handlers = MiddlewareHandlers()
+        self._standard_response_enabled = False
 
     def with_tracing(self, header: str = "X-Trace-ID") -> "MiddlewareBuilder":
         """
@@ -73,13 +75,31 @@ class MiddlewareBuilder:
         self._handlers.log_exclude_paths = set(exclude_paths or [])
         return self
 
+    def with_standard_response(self) -> "MiddlewareBuilder":
+        """
+        启用标准的 ApiResponse 自动包装功能。
+
+        如果启用, 所有返回 JSON 的端点都会被自动包装成 ApiResponse 格式,
+        除非该端点被 @allow_raw_response 装饰器标记。
+        """
+        self._standard_response_enabled = True
+        return self
+
     def build(self):
         """
         构建并应用配置好的中间件到 FastAPI 应用。
+
+        注意: 中间件的执行顺序是"后进先出"(LIFO)。
+        因此，我们先添加主中间件，再添加响应包装中间件，
+        这样在处理响应时，包装中间件会先执行。
+        不，搞反了。响应是LIFO，所以后加的先处理响应。
+        所以应该先加 StandardResponseMiddleware，再加主中间件。
         """
-        middleware = BaseHTTPMiddleware(
-            app=self._app, dispatch=self._handlers.dispatch
-        )
+        # 如果启用，先添加响应包装中间件
+        if self._standard_response_enabled:
+            self._app.add_middleware(StandardResponseMiddleware)
+
+        # 然后添加主中间件，用于处理追踪、身份、日志等
         self._app.add_middleware(BaseHTTPMiddleware, dispatch=self._handlers.dispatch)
 
 
