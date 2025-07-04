@@ -6,7 +6,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 from yai_nexus_logger import get_logger, trace_context
 
-from yai_nexus_api_middleware.models import ApiResponse
+from yai_nexus_api_middleware.responses import ApiResponse
 
 
 class StandardResponseMiddleware(BaseHTTPMiddleware):
@@ -64,20 +64,16 @@ class StandardResponseMiddleware(BaseHTTPMiddleware):
                 f"开发错误: 端点 '{endpoint_name}' 未能返回一个标准的 ApiResponse 对象。"
             )
             self.logger.error(
-                "检测到不合规的 API 响应",
-                extra={
-                    "endpoint": endpoint_name,
-                    "response_body_preview": response.body.decode(errors="ignore")[
-                        :200
-                    ],
-                },
+                "检测到不合规的 API 响应. Endpoint: %s, Response Body Preview: %s",
+                endpoint_name,
+                response.body.decode(errors="ignore")[:200],
             )
-            error_response = ApiResponse(
-                data=None,
-                code="ERR_INVALID_RESPONSE_FORMAT",
-                message=error_message,
-                trace_id=trace_context.get_trace_id(),
+
+            error_response = ApiResponse.failure(
+                code="ERR_INVALID_RESPONSE_FORMAT", message=error_message
             )
+            error_response.trace_id = trace_context.get_trace_id()
+
             return JSONResponse(
                 content=error_response.dict(by_alias=True),
                 status_code=500,  # Internal Server Error

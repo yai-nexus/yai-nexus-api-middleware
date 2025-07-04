@@ -1,9 +1,7 @@
 from typing import List, Optional
-from fastapi import FastAPI, Request
-from starlette.middleware.base import BaseHTTPMiddleware
-from yai_nexus_api_middleware.internal.core_handlers import MiddlewareHandlers
+from fastapi import FastAPI
+from yai_nexus_api_middleware.internal.core_handlers import CoreMiddleware
 from yai_nexus_api_middleware.internal.standard_response import StandardResponseMiddleware
-from .models import UserInfo, StaffInfo
 
 
 class MiddlewareBuilder:
@@ -19,8 +17,19 @@ class MiddlewareBuilder:
             app: 要应用中间件的 FastAPI 实例。
         """
         self._app = app
-        self._handlers = MiddlewareHandlers()
         self._standard_response_enabled = False
+        
+        # 中间件配置参数
+        self._trace_header = "X-Trace-ID"
+        self._tenant_id_header = "X-Tenant-ID"
+        self._user_id_header = "X-User-ID"
+        self._staff_id_header = "X-Staff-ID"
+        self._log_exclude_paths = []
+        
+        # 启用标志
+        self._tracing_enabled = False
+        self._identity_enabled = False
+        self._logging_enabled = False
 
     def with_tracing(self, header: str = "X-Trace-ID") -> "MiddlewareBuilder":
         """
@@ -32,8 +41,8 @@ class MiddlewareBuilder:
         Returns:
             返回建造者实例以支持链式调用。
         """
-        self._handlers.tracing_enabled = True
-        self._handlers.trace_header = header
+        self._tracing_enabled = True
+        self._trace_header = header
         return self
 
     def with_identity_parsing(
@@ -53,10 +62,10 @@ class MiddlewareBuilder:
         Returns:
             返回建造者实例以支持链式调用。
         """
-        self._handlers.identity_enabled = True
-        self._handlers.tenant_id_header = tenant_id_header
-        self._handlers.user_id_header = user_id_header
-        self._handlers.staff_id_header = staff_id_header
+        self._identity_enabled = True
+        self._tenant_id_header = tenant_id_header
+        self._user_id_header = user_id_header
+        self._staff_id_header = staff_id_header
         return self
 
     def with_request_logging(
@@ -71,8 +80,8 @@ class MiddlewareBuilder:
         Returns:
             返回建造者实例以支持链式调用。
         """
-        self._handlers.logging_enabled = True
-        self._handlers.log_exclude_paths = set(exclude_paths or [])
+        self._logging_enabled = True
+        self._log_exclude_paths = exclude_paths or []
         return self
 
     def with_standard_response(self) -> "MiddlewareBuilder":
@@ -92,28 +101,20 @@ class MiddlewareBuilder:
         注意: 中间件的执行顺序是"后进先出"(LIFO)。
         因此，我们先添加主中间件，再添加响应包装中间件，
         这样在处理响应时，包装中间件会先执行。
-        不，搞反了。响应是LIFO，所以后加的先处理响应。
-        所以应该先加 StandardResponseMiddleware，再加主中间件。
         """
         # 如果启用，先添加响应包装中间件
         if self._standard_response_enabled:
             self._app.add_middleware(StandardResponseMiddleware)
 
         # 然后添加主中间件，用于处理追踪、身份、日志等
-        self._app.add_middleware(BaseHTTPMiddleware, dispatch=self._handlers.dispatch)
-
-
-# --- Dependency Injection ---
-
-def get_current_user(request: Request) -> Optional[UserInfo]:
-    """
-    一个 FastAPI 依赖项，用于从请求状态中获取当前用户信息。
-    """
-    return getattr(request.state, "user_info", None)
-
-
-def get_current_staff(request: Request) -> Optional[StaffInfo]:
-    """
-    一个 FastAPI 依赖项，用于从请求状态中获取当前员工信息。
-    """
-    return getattr(request.state, "staff_info", None) 
+        self._app.add_middleware(
+            CoreMiddleware,
+            trace_header=self._trace_header,
+            tenant_id_header=self._tenant_id_header,
+            user_id_header=self._user_id_header,
+            staff_id_header=self._staff_id_header,
+            log_exclude_paths=self._log_exclude_paths,
+            tracing_enabled=self._tracing_enabled,
+            identity_enabled=self._identity_enabled,
+            logging_enabled=self._logging_enabled,
+        )

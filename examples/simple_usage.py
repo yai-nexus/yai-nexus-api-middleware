@@ -8,7 +8,7 @@ from yai_nexus_api_middleware import (
     get_current_user,
     UserInfo,
     ApiResponse,
-    allow_raw_response
+    allow_raw_response,
 )
 
 # 1. 创建 FastAPI 应用实例
@@ -38,13 +38,13 @@ app = FastAPI(title="YAI Nexus API Middleware 示例")
 async def read_root(user: Optional[UserInfo] = Depends(get_current_user)) -> ApiResponse:
     """
     一个合规的示例端点。
-    它显式地构造并返回一个 ApiResponse 对象。
+    它使用辅助函数来构造并返回一个 ApiResponse 对象。
     """
     if user and user.user_id:
         message = f"你好, 来自租户 {user.tenant_id} 的用户 {user.user_id}!"
     else:
         message = "你好, 匿名用户!"
-    return ApiResponse(data={"message": message})
+    return ApiResponse.success(data={"message": message})
 
 
 @app.get("/bad-endpoint")
