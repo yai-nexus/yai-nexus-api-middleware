@@ -9,7 +9,9 @@ This project uses Python with `pyproject.toml` configuration:
 - **Install dependencies**: `pip install -e .`
 - **Install with development dependencies**: `pip install -e ".[dev]"`
 - **Run tests**: `pytest` (uses paths configured in pyproject.toml: `pythonpath = [".", "src"]`)
+- **Run single test file**: `pytest tests/integration/test_middleware_integration.py`
 - **Run examples**: `uvicorn examples.simple_usage:app --reload --port 8000`
+- **Alternative example run**: `python examples/simple_usage.py` (runs on host 0.0.0.0:8000)
 
 ## Architecture Overview
 
@@ -23,13 +25,14 @@ This is a FastAPI middleware library (`yai_nexus_api_middleware`) that provides:
    - Standard response wrapping (ApiResponse format)
 
 3. **Key Components**:
-   - `src/yai_nexus_api_middleware/builder.py`: Main builder class and dependency injection functions
-   - `src/yai_nexus_api_middleware/models.py`: Data models (UserInfo, StaffInfo, ApiResponse)
-   - `src/yai_nexus_api_middleware/decorators.py`: Response decorators like `@allow_raw_response`
-   - `src/yai_nexus_api_middleware/internal/`: Internal implementation details
-   - `examples/simple_usage.py`: Complete working example
+   - `src/yai_nexus_api_middleware/builder.py`: Main `MiddlewareBuilder` class with fluent configuration API
+   - `src/yai_nexus_api_middleware/models.py`: Data models (UserInfo, StaffInfo)
+   - `src/yai_nexus_api_middleware/responses.py`: `ApiResponse` model for standardized responses
+   - `src/yai_nexus_api_middleware/dependencies.py`: FastAPI dependency functions (`get_current_user`, `get_current_staff`)
+   - `src/yai_nexus_api_middleware/internal/core_middleware.py`: Core ASGI middleware implementation
+   - `examples/simple_usage.py`: Complete working example with trace context usage
 
-4. **Response Handling**: The middleware enforces ApiResponse format for all endpoints unless marked with `@allow_raw_response`
+4. **Response Handling**: All endpoints should return `ApiResponse.success()` or `ApiResponse.failure()` for consistent JSON structure
 
 ## Project Structure
 
@@ -42,10 +45,9 @@ Follows standard Python packaging with:
 ## Dependencies
 
 Core dependencies:
-- `fastapi`: Web framework
-- `pydantic`: Data validation
-- `yai-nexus-logger`: Logging (part of yai-nexus ecosystem)
-- `yai-nexus-configuration`: Configuration management
+- `fastapi>=0.100.0`: Web framework
+- `pydantic>=2.0.0`: Data validation and models
+- `yai-nexus-logger==0.2.2`: Logging with trace context support (part of yai-nexus ecosystem)
 
 ## Code Style
 
@@ -55,10 +57,27 @@ Core dependencies:
 - Uses f-strings for string formatting
 - Single responsibility principle for functions and classes
 
+## Middleware Configuration Pattern
+
+The middleware uses a fluent builder pattern with three main configuration methods:
+
+1. **Tracing**: `with_tracing(header="X-Request-ID")` - Enables distributed tracing
+2. **Identity**: `with_identity_parsing(tenant_id_header="X-Tenant-ID", user_id_header="X-User-ID", staff_id_header="X-Staff-ID")` - Extracts user context from headers
+3. **Logging**: `with_request_logging(exclude_paths=["/health"])` - Logs all requests except specified paths
+
+Always call `.build()` to apply the middleware to the FastAPI app.
+
+## Trace Context Integration
+
+- Use `trace_context.get_trace_id()` from `yai-nexus-logger` to access current trace ID in business logic
+- Trace IDs are automatically included in `ApiResponse` objects and injected into all log records
+- Configure logging with both console and file handlers for development: `LoggerConfigurator().with_console_handler().with_file_handler(path="logs/filename.log")`
+
 ## Testing
 
 - Uses pytest framework
 - Test files should be named `test_*.py`
 - Test functions should be named `test_具体功能描述` (Chinese descriptive names)
 - Tests should be independent and repeatable
+- Integration tests should verify log file generation in `/logs` directory
 - Uses fixtures like `tmp_path` and `capsys` when needed
