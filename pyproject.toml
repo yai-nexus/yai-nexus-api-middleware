@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "yai-nexus-api-middleware"
-version = "0.1.0"
+version = "0.1.1"
 description = "FastAPI middleware for Y-AI Nexus"
 authors = [
     { name = "Y-AI Nexus", email = "dev@y-ai.ltd" }
